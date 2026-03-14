@@ -1,0 +1,187 @@
+local CoreGui = game:GetService(“CoreGui”)
+local camera = workspace.CurrentCamera
+local Lighting = game:GetService(“Lighting”)
+local Players = game:GetService(“Players”)
+local HttpService = game:GetService(“HttpService”)
+local RunService = game:GetService(“RunService”)
+
+local player = Players.LocalPlayer
+local FILE_NAME = “CryzsnConfig.json”
+
+– UI Setup
+local screenGui = Instance.new(“ScreenGui”)
+screenGui.Name = “CryzsnSystem”
+screenGui.ResetOnSpawn = false
+local success, err = pcall(function() screenGui.Parent = CoreGui:FindFirstChild(“RobloxGui”) or CoreGui end)
+if not success then screenGui.Parent = player:WaitForChild(“PlayerGui”) end
+
+local mainFrame = Instance.new(“Frame”)
+mainFrame.Size = UDim2.new(0, 160, 0, 185)
+mainFrame.Position = UDim2.new(0.5, -80, 0.3, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Parent = screenGui
+Instance.new(“UICorner”, mainFrame).CornerRadius = UDim.new(0, 10)
+Instance.new(“UIStroke”, mainFrame).Color = Color3.fromRGB(160, 32, 240)
+
+local titleLabel = Instance.new(“TextLabel”)
+titleLabel.Size = UDim2.new(1, 0, 0, 35)
+titleLabel.Position = UDim2.new(0, 0, 0, 2)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = “SEVEN HUB HELPER”
+titleLabel.TextColor3 = Color3.fromRGB(190, 100, 255)
+titleLabel.TextSize = 14
+titleLabel.Font = Enum.Font.LuckiestGuy
+titleLabel.Parent = mainFrame
+
+local function createBtn(text, pos, isSave)
+local btn = Instance.new(“TextButton”)
+btn.Size = UDim2.new(0.85, 0, 0, 28)
+btn.Position = pos
+btn.BackgroundColor3 = isSave and Color3.fromRGB(0, 80, 0) or Color3.fromRGB(45, 0, 70)
+btn.Text = text
+btn.TextColor3 = Color3.new(1, 1, 1)
+btn.Font = Enum.Font.LuckiestGuy
+btn.TextSize = 13
+btn.Parent = mainFrame
+Instance.new(“UICorner”, btn).CornerRadius = UDim.new(0, 6)
+return btn
+end
+
+local fovBtn      = createBtn(“FOV: OFF”,         UDim2.new(0.075, 0, 0, 38))
+local galaxyBtn   = createBtn(“GALAXY MODE: OFF”, UDim2.new(0.075, 0, 0, 72))
+local walkFlingBtn= createBtn(“WALK FLING: OFF”,  UDim2.new(0.075, 0, 0, 106))
+local saveBtn     = createBtn(“SAVE CONFIG”,      UDim2.new(0.075, 0, 0, 148), true)
+
+— LOGIC VARIABLES —
+local fovOn, galaxyOn, walkFlingOn = false, false, false
+local defBrightness, defClock, defAmbient = Lighting.Brightness, Lighting.ClockTime, Lighting.OutdoorAmbient
+
+– Walk Fling state
+local walkFlingConnections = {}
+local walkFlingActive = false
+
+local function updateGalaxy()
+galaxyBtn.Text = galaxyOn and “GALAXY MODE: ON” or “GALAXY MODE: OFF”
+galaxyBtn.BackgroundColor3 = galaxyOn and Color3.fromRGB(160, 32, 240) or Color3.fromRGB(45, 0, 70)
+if galaxyOn then
+local sky = Lighting:FindFirstChild(“GalaxySky”) or Instance.new(“Sky”)
+sky.Name = “GalaxySky”
+sky.SkyboxBk = “rbxassetid://159454299”
+sky.SkyboxDn = “rbxassetid://159454296”
+sky.SkyboxFt = “rbxassetid://159454293”
+sky.SkyboxLf = “rbxassetid://159454286”
+sky.SkyboxRt = “rbxassetid://159454289”
+sky.SkyboxUp = “rbxassetid://159454291”
+sky.Parent = Lighting
+Lighting.Brightness, Lighting.ClockTime, Lighting.ExposureCompensation = 0, 0, -2
+Lighting.OutdoorAmbient = Color3.fromRGB(0, 0, 0)
+else
+if Lighting:FindFirstChild(“GalaxySky”) then Lighting.GalaxySky:Destroy() end
+Lighting.Brightness, Lighting.ClockTime, Lighting.ExposureCompensation = defBrightness, defClock, 0
+Lighting.OutdoorAmbient = defAmbient
+end
+end
+
+— WALK FLING —
+local function walkFling(enabled)
+if enabled then
+walkFlingActive = true
+
+```
+    local conn = RunService.Stepped:Connect(function()
+        if not walkFlingActive then return end
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr ~= player and plr.Character then
+                for _, part in ipairs(plr.Character:GetChildren()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
+                    end
+                end
+            end
+        end
+    end)
+    table.insert(walkFlingConnections, conn)
+
+    local character = player.Character or player.CharacterAdded:Wait()
+    task.spawn(function()
+        repeat
+            RunService.Heartbeat:Wait()
+            local root = character:FindFirstChild("HumanoidRootPart")
+            if root then
+                local vel = root.Velocity
+                root.Velocity = vel * 100000 + Vector3.new(0, 100000, 0)
+                RunService.RenderStepped:Wait()
+                root.Velocity = vel
+                RunService.Stepped:Wait()
+                root.Velocity = vel + Vector3.new(0, 0.1, 0)
+            end
+        until not walkFlingActive
+    end)
+else
+    walkFlingActive = false
+    for _, conn in ipairs(walkFlingConnections) do
+        if typeof(conn) == "RBXScriptConnection" then
+            conn:Disconnect()
+        end
+    end
+    walkFlingConnections = {}
+end
+```
+
+end
+
+local function updateWalkFling()
+walkFlingBtn.Text = walkFlingOn and “WALK FLING: ON” or “WALK FLING: OFF”
+walkFlingBtn.BackgroundColor3 = walkFlingOn and Color3.fromRGB(160, 32, 240) or Color3.fromRGB(45, 0, 70)
+end
+
+– Toggles
+fovBtn.MouseButton1Click:Connect(function()
+fovOn = not fovOn
+camera.FieldOfView = fovOn and 100 or 70
+fovBtn.Text = fovOn and “FOV: ON” or “FOV: OFF”
+fovBtn.BackgroundColor3 = fovOn and Color3.fromRGB(160, 32, 240) or Color3.fromRGB(45, 0, 70)
+end)
+
+galaxyBtn.MouseButton1Click:Connect(function()
+galaxyOn = not galaxyOn
+updateGalaxy()
+end)
+
+walkFlingBtn.MouseButton1Click:Connect(function()
+walkFlingOn = not walkFlingOn
+updateWalkFling()
+walkFling(walkFlingOn)
+end)
+
+– Save Config
+saveBtn.MouseButton1Click:Connect(function()
+if writefile then
+local data = {
+FOV = fovOn, Galaxy = galaxyOn, WalkFling = walkFlingOn,
+PosX = mainFrame.Position.X.Scale, OffsetX = mainFrame.Position.X.Offset,
+PosY = mainFrame.Position.Y.Scale, OffsetY = mainFrame.Position.Y.Offset
+}
+writefile(FILE_NAME, HttpService:JSONEncode(data))
+saveBtn.Text = “SAVED!”
+task.wait(0.5)
+saveBtn.Text = “SAVE CONFIG”
+end
+end)
+
+– Load Config
+if isfile and isfile(FILE_NAME) then
+local s, d = pcall(function() return HttpService:JSONDecode(readfile(FILE_NAME)) end)
+if s and d then
+if d.PosX then mainFrame.Position = UDim2.new(d.PosX, d.OffsetX, d.PosY, d.OffsetY) end
+fovOn      = d.FOV       or false
+galaxyOn   = d.Galaxy    or false
+walkFlingOn= d.WalkFling or false
+if fovOn then camera.FieldOfView = 100; fovBtn.Text = “FOV: ON”; fovBtn.BackgroundColor3 = Color3.fromRGB(160, 32, 240) end
+if walkFlingOn then walkFling(true) end
+updateGalaxy()
+updateWalkFling()
+end
+end
